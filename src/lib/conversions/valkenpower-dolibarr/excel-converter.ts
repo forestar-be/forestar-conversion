@@ -374,11 +374,10 @@ export async function convertToExcel(
   }
 
   // Generate ZIP synchronously using the internal generateInternalStream
-  const zipBuffer = zip.generateAsync({ type: "uint8array" });
+  const zipBuffer = await zip.generateAsync({ type: "uint8array" });
 
   return {
-    // Note: This returns a Promise<Uint8Array>, caller must handle async
-    buffer: zipBuffer as unknown as Uint8Array,
+    buffer: zipBuffer,
     isZip: true,
     fileCount,
     headers,

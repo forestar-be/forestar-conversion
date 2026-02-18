@@ -109,28 +109,19 @@ export default function ConverterPage() {
   const handleDownload = useCallback(() => {
     if (!result) return;
     const baseName = xmlFileName.replace(/\.xml$/i, "");
+    const isZip = result.isZip;
 
-    if (result.isZip) {
-      const blob = new Blob([result.buffer.buffer as ArrayBuffer], {
-        type: "application/zip",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${baseName}_dolibarr.zip`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } else {
-      const blob = new Blob([result.buffer.buffer as ArrayBuffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${baseName}_dolibarr.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
+    const blob = new Blob([result.buffer as BlobPart], {
+      type: isZip
+        ? "application/zip"
+        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${baseName}_dolibarr.${isZip ? "zip" : "xlsx"}`;
+    a.click();
+    URL.revokeObjectURL(url);
   }, [result, xmlFileName]);
 
   return (

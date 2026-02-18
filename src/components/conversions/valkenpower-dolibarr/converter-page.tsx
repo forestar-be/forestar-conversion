@@ -10,6 +10,7 @@ import {
   ConversionOptions,
   ConversionResult,
   DEFAULT_OPTIONS,
+  MAX_ROWS_PER_FILE,
 } from "@/lib/conversions/valkenpower-dolibarr/excel-converter";
 import { FileDropZone } from "@/components/conversions/valkenpower-dolibarr/file-drop-zone";
 import { ConversionOptionsForm } from "@/components/conversions/valkenpower-dolibarr/conversion-options-form";
@@ -30,6 +31,8 @@ import {
   AlertCircle,
   Loader2,
   ArrowLeft,
+  Archive,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -84,40 +87,50 @@ export default function ConverterPage() {
     }
   }, []);
 
-  const handleConvert = useCallback(() => {
+  const handleConvert = useCallback(async () => {
     if (products.length === 0) return;
     setError(null);
     setIsConverting(true);
-    // Delay to let the loading modal render before the synchronous conversion
-    setTimeout(() => {
-      try {
-        const convResult = convertToExcel(products, options);
-        setResult(convResult);
-        setTimeout(() => {
-          excelPreviewRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
-      } catch (e) {
-        setError(
-          e instanceof Error ? e.message : "Erreur lors de la conversion.",
-        );
-      } finally {
-        setIsConverting(false);
-      }
-    }, 50);
+    try {
+      const convResult = await convertToExcel(products, options);
+      setResult(convResult);
+      setTimeout(() => {
+        excelPreviewRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Erreur lors de la conversion.",
+      );
+    } finally {
+      setIsConverting(false);
+    }
   }, [products, options]);
 
   const handleDownload = useCallback(() => {
     if (!result) return;
-    const blob = new Blob([result.excelBuffer.buffer as ArrayBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    const url = URL.createObjectURL(blob);
     const baseName = xmlFileName.replace(/\.xml$/i, "");
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${baseName}_dolibarr.xlsx`;
-    a.click();
-    URL.revokeObjectURL(url);
+
+    if (result.isZip) {
+      const blob = new Blob([result.buffer.buffer as ArrayBuffer], {
+        type: "application/zip",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${baseName}_dolibarr.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      const blob = new Blob([result.buffer.buffer as ArrayBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${baseName}_dolibarr.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   }, [result, xmlFileName]);
 
   return (
@@ -219,6 +232,20 @@ export default function ConverterPage() {
                     <WarningsPanel warnings={result.warnings} />
                   )}
 
+                  {result.isZip && (
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
+                        Le fichier contient plus de {MAX_ROWS_PER_FILE}{" "}
+                        produits. Pour éviter les problèmes d&apos;import dans
+                        Dolibarr, les données ont été divisées en{" "}
+                        {result.fileCount} fichiers Excel regroupés dans une
+                        archive ZIP. Importez chaque fichier séparément dans
+                        Dolibarr.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   <Card className="border-green-500 bg-green-50">
                     <CardContent className="py-4">
                       <div className="flex items-center justify-between">
@@ -230,16 +257,21 @@ export default function ConverterPage() {
                             </p>
                             <p className="text-sm text-green-700">
                               {result.totalProducts} produits •{" "}
-                              {(result.excelBuffer.byteLength / 1024).toFixed(
-                                1,
-                              )}{" "}
-                              Ko
+                              {result.isZip
+                                ? `${result.fileCount} fichiers Excel`
+                                : `${(result.buffer.byteLength / 1024).toFixed(1)} Ko`}
                             </p>
                           </div>
                         </div>
                         <Button onClick={handleDownload} size="lg">
-                          <Download className="h-4 w-4 mr-2" />
-                          Télécharger le Excel
+                          {result.isZip ? (
+                            <Archive className="h-4 w-4 mr-2" />
+                          ) : (
+                            <Download className="h-4 w-4 mr-2" />
+                          )}
+                          {result.isZip
+                            ? "Télécharger le ZIP"
+                            : "Télécharger le Excel"}
                         </Button>
                       </div>
                     </CardContent>

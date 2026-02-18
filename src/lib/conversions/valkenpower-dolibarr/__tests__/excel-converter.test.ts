@@ -44,39 +44,45 @@ function opts(overrides: Partial<ConversionOptions> = {}): ConversionOptions {
 // ─── Structure ──────────────────────────────────────────────────────────────
 
 describe("convertToExcel — structure", () => {
-  it("returns headers and one row per product", () => {
-    const result = convertToExcel([makeProduct()], opts());
+  it("returns headers and one row per product", async () => {
+    const result = await convertToExcel([makeProduct()], opts());
     expect(result.headers.length).toBeGreaterThan(5);
     expect(result.rows.length).toBe(1);
   });
 
-  it("returns totalProducts count", () => {
+  it("returns totalProducts count", async () => {
     const products = [
       makeProduct({ model: "A" }),
       makeProduct({ model: "B", barcode: "111" }),
     ];
-    const result = convertToExcel(products, opts());
+    const result = await convertToExcel(products, opts());
     expect(result.totalProducts).toBe(2);
   });
 
-  it("handles empty products array", () => {
-    const result = convertToExcel([], opts());
+  it("handles empty products array", async () => {
+    const result = await convertToExcel([], opts());
     expect(result.totalProducts).toBe(0);
     expect(result.rows.length).toBe(0);
   });
 
-  it("returns a valid Excel buffer", () => {
-    const result = convertToExcel([makeProduct()], opts());
-    expect(result.excelBuffer).toBeInstanceOf(Uint8Array);
-    expect(result.excelBuffer.byteLength).toBeGreaterThan(0);
+  it("returns a valid buffer", async () => {
+    const result = await convertToExcel([makeProduct()], opts());
+    expect(result.buffer).toBeInstanceOf(Uint8Array);
+    expect(result.buffer.byteLength).toBeGreaterThan(0);
+  });
+
+  it("returns isZip false for small datasets", async () => {
+    const result = await convertToExcel([makeProduct()], opts());
+    expect(result.isZip).toBe(false);
+    expect(result.fileCount).toBe(1);
   });
 });
 
 // ─── Required Headers ───────────────────────────────────────────────────────
 
 describe("convertToExcel — Dolibarr headers", () => {
-  it("always includes required Dolibarr fields", () => {
-    const result = convertToExcel([makeProduct()], opts());
+  it("always includes required Dolibarr fields", async () => {
+    const result = await convertToExcel([makeProduct()], opts());
     expect(result.headers).toContain("Réf.* (p.ref)");
     expect(result.headers).toContain("Libellé* (p.label)");
     expect(result.headers).toContain("Type* (p.fk_product_type)");
@@ -85,8 +91,8 @@ describe("convertToExcel — Dolibarr headers", () => {
     expect(result.headers).toContain("Description (p.description)");
   });
 
-  it("includes price columns always", () => {
-    const result = convertToExcel([makeProduct()], opts());
+  it("includes price columns always", async () => {
+    const result = await convertToExcel([makeProduct()], opts());
     expect(result.headers).toContain("Prix de vente HT (p.price)");
     expect(result.headers).toContain("Prix de vente TTC (p.price_ttc)");
     expect(result.headers).toContain("Taux TVA (p.tva_tx)");
@@ -97,24 +103,24 @@ describe("convertToExcel — Dolibarr headers", () => {
 // ─── Optional Columns ───────────────────────────────────────────────────────
 
 describe("convertToExcel — optional columns", () => {
-  it("includes barcode column when includeBarcode is true", () => {
-    const result = convertToExcel(
+  it("includes barcode column when includeBarcode is true", async () => {
+    const result = await convertToExcel(
       [makeProduct()],
       opts({ includeBarcode: true }),
     );
     expect(result.headers).toContain("Code-barres (p.barcode)");
   });
 
-  it("excludes barcode column when includeBarcode is false", () => {
-    const result = convertToExcel(
+  it("excludes barcode column when includeBarcode is false", async () => {
+    const result = await convertToExcel(
       [makeProduct()],
       opts({ includeBarcode: false }),
     );
     expect(result.headers).not.toContain("Code-barres (p.barcode)");
   });
 
-  it("includes weight columns when includeWeight is true", () => {
-    const result = convertToExcel(
+  it("includes weight columns when includeWeight is true", async () => {
+    const result = await convertToExcel(
       [makeProduct()],
       opts({ includeWeight: true }),
     );
@@ -122,42 +128,42 @@ describe("convertToExcel — optional columns", () => {
     expect(result.headers).toContain("Unité de poids (p.weight_units)");
   });
 
-  it("excludes weight columns when includeWeight is false", () => {
-    const result = convertToExcel(
+  it("excludes weight columns when includeWeight is false", async () => {
+    const result = await convertToExcel(
       [makeProduct()],
       opts({ includeWeight: false }),
     );
     expect(result.headers).not.toContain("Weight (p.weight)");
   });
 
-  it("includes URL column when includeUrl is true", () => {
-    const result = convertToExcel([makeProduct()], opts({ includeUrl: true }));
+  it("includes URL column when includeUrl is true", async () => {
+    const result = await convertToExcel([makeProduct()], opts({ includeUrl: true }));
     expect(result.headers).toContain("URL publique (p.url)");
   });
 
-  it("excludes URL column when includeUrl is false", () => {
-    const result = convertToExcel([makeProduct()], opts({ includeUrl: false }));
+  it("excludes URL column when includeUrl is false", async () => {
+    const result = await convertToExcel([makeProduct()], opts({ includeUrl: false }));
     expect(result.headers).not.toContain("URL publique (p.url)");
   });
 
-  it("includes price_min column when includePriceMin is true", () => {
-    const result = convertToExcel(
+  it("includes price_min column when includePriceMin is true", async () => {
+    const result = await convertToExcel(
       [makeProduct()],
       opts({ includePriceMin: true }),
     );
     expect(result.headers).toContain("Prix de vente min. (p.price_min)");
   });
 
-  it("excludes price_min column when includePriceMin is false", () => {
-    const result = convertToExcel(
+  it("excludes price_min column when includePriceMin is false", async () => {
+    const result = await convertToExcel(
       [makeProduct()],
       opts({ includePriceMin: false }),
     );
     expect(result.headers).not.toContain("Prix de vente min. (p.price_min)");
   });
 
-  it("includes dimension columns when includeDimensions is true", () => {
-    const result = convertToExcel(
+  it("includes dimension columns when includeDimensions is true", async () => {
+    const result = await convertToExcel(
       [makeProduct()],
       opts({ includeDimensions: true }),
     );
@@ -166,8 +172,8 @@ describe("convertToExcel — optional columns", () => {
     expect(result.headers).toContain("Hauteur (p.height)");
   });
 
-  it("excludes dimension columns when includeDimensions is false", () => {
-    const result = convertToExcel(
+  it("excludes dimension columns when includeDimensions is false", async () => {
+    const result = await convertToExcel(
       [makeProduct()],
       opts({ includeDimensions: false }),
     );
@@ -178,30 +184,30 @@ describe("convertToExcel — optional columns", () => {
 // ─── Data Values ────────────────────────────────────────────────────────────
 
 describe("convertToExcel — data values", () => {
-  it("outputs model as ref", () => {
-    const result = convertToExcel([makeProduct({ model: "GEN3000" })], opts());
+  it("outputs model as ref", async () => {
+    const result = await convertToExcel([makeProduct({ model: "GEN3000" })], opts());
     expect(result.rows[0][0]).toBe("GEN3000");
   });
 
-  it("outputs product type 0 for products", () => {
-    const result = convertToExcel([makeProduct()], opts({ productType: 0 }));
+  it("outputs product type 0 for products", async () => {
+    const result = await convertToExcel([makeProduct()], opts({ productType: 0 }));
     expect(result.rows[0][2]).toBe("0");
   });
 
-  it("outputs product type 1 for services", () => {
-    const result = convertToExcel([makeProduct()], opts({ productType: 1 }));
+  it("outputs product type 1 for services", async () => {
+    const result = await convertToExcel([makeProduct()], opts({ productType: 1 }));
     expect(result.rows[0][2]).toBe("1");
   });
 
-  it("outputs tosell and tobuy as 1/0", () => {
-    const r1 = convertToExcel(
+  it("outputs tosell and tobuy as 1/0", async () => {
+    const r1 = await convertToExcel(
       [makeProduct()],
       opts({ toSell: true, toBuy: true }),
     );
     expect(r1.rows[0][3]).toBe("1");
     expect(r1.rows[0][4]).toBe("1");
 
-    const r2 = convertToExcel(
+    const r2 = await convertToExcel(
       [makeProduct()],
       opts({ toSell: false, toBuy: false }),
     );
@@ -209,42 +215,42 @@ describe("convertToExcel — data values", () => {
     expect(r2.rows[0][4]).toBe("0");
   });
 
-  it("outputs TVA rate with one decimal", () => {
-    const result = convertToExcel([makeProduct()], opts({ tvaRate: 21.0 }));
+  it("outputs TVA rate with one decimal", async () => {
+    const result = await convertToExcel([makeProduct()], opts({ tvaRate: 21.0 }));
     expect(result.rows[0]).toContain("21.0");
   });
 
-  it("outputs TVA rate 6% correctly", () => {
-    const result = convertToExcel([makeProduct()], opts({ tvaRate: 6.0 }));
+  it("outputs TVA rate 6% correctly", async () => {
+    const result = await convertToExcel([makeProduct()], opts({ tvaRate: 6.0 }));
     expect(result.rows[0]).toContain("6.0");
   });
 
-  it("outputs price base type HT", () => {
-    const result = convertToExcel(
+  it("outputs price base type HT", async () => {
+    const result = await convertToExcel(
       [makeProduct()],
       opts({ priceBaseType: "HT" }),
     );
     expect(result.rows[0]).toContain("HT");
   });
 
-  it("outputs price base type TTC", () => {
-    const result = convertToExcel(
+  it("outputs price base type TTC", async () => {
+    const result = await convertToExcel(
       [makeProduct()],
       opts({ priceBaseType: "TTC" }),
     );
     expect(result.rows[0]).toContain("TTC");
   });
 
-  it("outputs barcode value", () => {
-    const result = convertToExcel(
+  it("outputs barcode value", async () => {
+    const result = await convertToExcel(
       [makeProduct({ barcode: "8720028050130" })],
       opts({ includeBarcode: true }),
     );
     expect(result.rows[0]).toContain("8720028050130");
   });
 
-  it("preserves full EAN-13 barcode digits (no scientific notation)", () => {
-    const result = convertToExcel(
+  it("preserves full EAN-13 barcode digits (no scientific notation)", async () => {
+    const result = await convertToExcel(
       [makeProduct({ barcode: "8720028050130" })],
       opts({ includeBarcode: true }),
     );
@@ -253,8 +259,8 @@ describe("convertToExcel — data values", () => {
     expect(barcodeField).not.toMatch(/[eE]/);
   });
 
-  it("outputs prices correctly", () => {
-    const result = convertToExcel(
+  it("outputs prices correctly", async () => {
+    const result = await convertToExcel(
       [
         makeProduct({
           priceEXVAT: "250.00",
@@ -269,8 +275,8 @@ describe("convertToExcel — data values", () => {
     expect(result.rows[0]).toContain("200.00");
   });
 
-  it("outputs empty string for missing prices", () => {
-    const result = convertToExcel(
+  it("outputs empty string for missing prices", async () => {
+    const result = await convertToExcel(
       [makeProduct({ priceEXVAT: "", priceINVAT: "", specialpriceEXVAT: "" })],
       opts(),
     );
@@ -278,17 +284,17 @@ describe("convertToExcel — data values", () => {
     expect(result.rows[0].join(";")).not.toContain("null");
   });
 
-  it("outputs mainimage as URL", () => {
-    const result = convertToExcel(
+  it("outputs mainimage as URL", async () => {
+    const result = await convertToExcel(
       [makeProduct({ mainimage: "https://cdn.valkenpower.com/img.jpg" })],
       opts({ includeUrl: true }),
     );
     expect(result.rows[0]).toContain("https://cdn.valkenpower.com/img.jpg");
   });
 
-  it("handles special characters in fields without escaping", () => {
+  it("handles special characters in fields without escaping", async () => {
     const p = makeProduct({ titleEN: "Generator; 3000W" });
-    const result = convertToExcel([p], opts({ descriptionLang: "EN" }));
+    const result = await convertToExcel([p], opts({ descriptionLang: "EN" }));
     expect(result.rows[0][1]).toBe("Generator; 3000W");
   });
 });
@@ -307,56 +313,56 @@ describe("convertToExcel — language selection", () => {
     descriptionDE: "Desc DE",
   });
 
-  it("uses FR title when descriptionLang is FR", () => {
-    const result = convertToExcel([product], opts({ descriptionLang: "FR" }));
+  it("uses FR title when descriptionLang is FR", async () => {
+    const result = await convertToExcel([product], opts({ descriptionLang: "FR" }));
     expect(result.rows[0][1]).toBe("Titre FR");
   });
 
-  it("uses EN title when descriptionLang is EN", () => {
-    const result = convertToExcel([product], opts({ descriptionLang: "EN" }));
+  it("uses EN title when descriptionLang is EN", async () => {
+    const result = await convertToExcel([product], opts({ descriptionLang: "EN" }));
     expect(result.rows[0][1]).toBe("Title EN");
   });
 
-  it("uses NL title when descriptionLang is NL", () => {
-    const result = convertToExcel([product], opts({ descriptionLang: "NL" }));
+  it("uses NL title when descriptionLang is NL", async () => {
+    const result = await convertToExcel([product], opts({ descriptionLang: "NL" }));
     expect(result.rows[0][1]).toBe("Titel NL");
   });
 
-  it("uses DE title when descriptionLang is DE", () => {
-    const result = convertToExcel([product], opts({ descriptionLang: "DE" }));
+  it("uses DE title when descriptionLang is DE", async () => {
+    const result = await convertToExcel([product], opts({ descriptionLang: "DE" }));
     expect(result.rows[0][1]).toBe("Titel DE");
   });
 
-  it("falls back FR → EN → NL when FR title is missing", () => {
+  it("falls back FR → EN → NL when FR title is missing", async () => {
     const p = makeProduct({
       titleFR: "",
       titleEN: "Fallback EN",
       titleNL: "Fallback NL",
     });
-    const result = convertToExcel([p], opts({ descriptionLang: "FR" }));
+    const result = await convertToExcel([p], opts({ descriptionLang: "FR" }));
     expect(result.rows[0][1]).toBe("Fallback EN");
   });
 
-  it("falls back FR → EN → NL when both FR and EN are missing", () => {
+  it("falls back FR → EN → NL when both FR and EN are missing", async () => {
     const p = makeProduct({ titleFR: "", titleEN: "", titleNL: "Fallback NL" });
-    const result = convertToExcel([p], opts({ descriptionLang: "FR" }));
+    const result = await convertToExcel([p], opts({ descriptionLang: "FR" }));
     expect(result.rows[0][1]).toBe("Fallback NL");
   });
 
-  it("falls back EN → NL when EN title is missing", () => {
+  it("falls back EN → NL when EN title is missing", async () => {
     const p = makeProduct({ titleEN: "", titleNL: "Fallback NL" });
-    const result = convertToExcel([p], opts({ descriptionLang: "EN" }));
+    const result = await convertToExcel([p], opts({ descriptionLang: "EN" }));
     expect(result.rows[0][1]).toBe("Fallback NL");
   });
 
-  it("falls back DE → EN → NL when DE title is missing", () => {
+  it("falls back DE → EN → NL when DE title is missing", async () => {
     const p = makeProduct({ titleDE: "", titleEN: "Fallback EN" });
-    const result = convertToExcel([p], opts({ descriptionLang: "DE" }));
+    const result = await convertToExcel([p], opts({ descriptionLang: "DE" }));
     expect(result.rows[0][1]).toBe("Fallback EN");
   });
 
-  it("uses correct description language in output", () => {
-    const result = convertToExcel([product], opts({ descriptionLang: "EN" }));
+  it("uses correct description language in output", async () => {
+    const result = await convertToExcel([product], opts({ descriptionLang: "EN" }));
     expect(result.rows[0][5]).toBe("Desc EN");
   });
 });
@@ -364,42 +370,42 @@ describe("convertToExcel — language selection", () => {
 // ─── Weight Source ───────────────────────────────────────────────────────────
 
 describe("convertToExcel — weight source", () => {
-  it("uses package weight by default", () => {
+  it("uses package weight by default", async () => {
     const p = makeProduct({ prodWeight: 5.5, packWeight: 7.2 });
-    const result = convertToExcel(
+    const result = await convertToExcel(
       [p],
       opts({ weightSource: "package", includeWeight: true }),
     );
     expect(result.rows[0]).toContain("7.2");
   });
 
-  it("uses product weight when weightSource is product", () => {
+  it("uses product weight when weightSource is product", async () => {
     const p = makeProduct({ prodWeight: 5.5, packWeight: 7.2 });
-    const result = convertToExcel(
+    const result = await convertToExcel(
       [p],
       opts({ weightSource: "product", includeWeight: true }),
     );
     expect(result.rows[0]).toContain("5.5");
   });
 
-  it("falls back to package weight when product weight is 0", () => {
+  it("falls back to package weight when product weight is 0", async () => {
     const p = makeProduct({ prodWeight: 0, packWeight: 7.2 });
-    const result = convertToExcel(
+    const result = await convertToExcel(
       [p],
       opts({ weightSource: "product", includeWeight: true }),
     );
     expect(result.rows[0]).toContain("7.2");
   });
 
-  it("outputs weight unit 'kg' when weight > 0", () => {
+  it("outputs weight unit 'KG' when weight > 0", async () => {
     const p = makeProduct({ packWeight: 7.2 });
-    const result = convertToExcel([p], opts({ includeWeight: true }));
-    expect(result.rows[0]).toContain("kg");
+    const result = await convertToExcel([p], opts({ includeWeight: true }));
+    expect(result.rows[0]).toContain("KG");
   });
 
-  it("outputs empty weight unit when weight is 0", () => {
+  it("outputs empty weight unit when weight is 0", async () => {
     const p = makeProduct({ prodWeight: 0, packWeight: 0 });
-    const result = convertToExcel([p], opts({ includeWeight: true }));
+    const result = await convertToExcel([p], opts({ includeWeight: true }));
     const weightUnitIdx = result.headers.findIndex((h) =>
       h.includes("p.weight_units"),
     );
@@ -410,15 +416,15 @@ describe("convertToExcel — weight source", () => {
 // ─── Dimensions ──────────────────────────────────────────────────────────────
 
 describe("convertToExcel — dimensions", () => {
-  it("outputs product dimensions when available", () => {
+  it("outputs product dimensions when available", async () => {
     const p = makeProduct({ prodLength: 300, prodWidth: 200, prodHeight: 100 });
-    const result = convertToExcel([p], opts({ includeDimensions: true }));
+    const result = await convertToExcel([p], opts({ includeDimensions: true }));
     expect(result.rows[0]).toContain("300");
     expect(result.rows[0]).toContain("200");
     expect(result.rows[0]).toContain("100");
   });
 
-  it("falls back to pack dimensions when product dimensions are 0", () => {
+  it("falls back to pack dimensions when product dimensions are 0", async () => {
     const p = makeProduct({
       prodLength: 0,
       prodWidth: 0,
@@ -427,19 +433,19 @@ describe("convertToExcel — dimensions", () => {
       packWidth: 300,
       packHeight: 200,
     });
-    const result = convertToExcel([p], opts({ includeDimensions: true }));
+    const result = await convertToExcel([p], opts({ includeDimensions: true }));
     expect(result.rows[0]).toContain("400");
     expect(result.rows[0]).toContain("300");
     expect(result.rows[0]).toContain("200");
   });
 
-  it("outputs 'mm' as dimension unit when dimension > 0", () => {
+  it("outputs 'MM' as dimension unit when dimension > 0", async () => {
     const p = makeProduct({ prodLength: 300 });
-    const result = convertToExcel([p], opts({ includeDimensions: true }));
-    expect(result.rows[0]).toContain("mm");
+    const result = await convertToExcel([p], opts({ includeDimensions: true }));
+    expect(result.rows[0]).toContain("MM");
   });
 
-  it("outputs empty dimension values when all dimensions are 0", () => {
+  it("outputs empty dimension values when all dimensions are 0", async () => {
     const p = makeProduct({
       prodLength: 0,
       prodWidth: 0,
@@ -448,7 +454,7 @@ describe("convertToExcel — dimensions", () => {
       packWidth: 0,
       packHeight: 0,
     });
-    const result = convertToExcel([p], opts({ includeDimensions: true }));
+    const result = await convertToExcel([p], opts({ includeDimensions: true }));
     const lengthIdx = result.headers.findIndex((h) => h.includes("p.length)"));
     expect(result.rows[0][lengthIdx]).toBe("");
   });
@@ -457,28 +463,28 @@ describe("convertToExcel — dimensions", () => {
 // ─── Warnings ────────────────────────────────────────────────────────────────
 
 describe("convertToExcel — warnings", () => {
-  it("warns about missing barcodes when includeBarcode is true", () => {
+  it("warns about missing barcodes when includeBarcode is true", async () => {
     const p = makeProduct({ model: "NOBC", barcode: "" });
-    const result = convertToExcel([p], opts({ includeBarcode: true }));
+    const result = await convertToExcel([p], opts({ includeBarcode: true }));
     expect(result.warnings).toContainEqual(
       expect.objectContaining({ type: "missing_barcode", model: "NOBC" }),
     );
   });
 
-  it("does not warn about missing barcodes when includeBarcode is false", () => {
+  it("does not warn about missing barcodes when includeBarcode is false", async () => {
     const p = makeProduct({ model: "NOBC", barcode: "" });
-    const result = convertToExcel([p], opts({ includeBarcode: false }));
+    const result = await convertToExcel([p], opts({ includeBarcode: false }));
     expect(
       result.warnings.filter((w) => w.type === "missing_barcode"),
     ).toHaveLength(0);
   });
 
-  it("warns about duplicate barcodes", () => {
+  it("warns about duplicate barcodes", async () => {
     const products = [
       makeProduct({ model: "A01", barcode: "1234567890123" }),
       makeProduct({ model: "B02", barcode: "1234567890123" }),
     ];
-    const result = convertToExcel(products, opts({ includeBarcode: true }));
+    const result = await convertToExcel(products, opts({ includeBarcode: true }));
     const dupWarnings = result.warnings.filter(
       (w) => w.type === "duplicate_barcode",
     );
@@ -487,23 +493,23 @@ describe("convertToExcel — warnings", () => {
     expect(dupWarnings[0].message).toContain("A01");
   });
 
-  it("does not warn about duplicate barcodes when includeBarcode is false", () => {
+  it("does not warn about duplicate barcodes when includeBarcode is false", async () => {
     const products = [
       makeProduct({ model: "A01", barcode: "1234567890123" }),
       makeProduct({ model: "B02", barcode: "1234567890123" }),
     ];
-    const result = convertToExcel(products, opts({ includeBarcode: false }));
+    const result = await convertToExcel(products, opts({ includeBarcode: false }));
     expect(
       result.warnings.filter((w) => w.type === "duplicate_barcode"),
     ).toHaveLength(0);
   });
 
-  it("warns about duplicate refs", () => {
+  it("warns about duplicate refs", async () => {
     const products = [
       makeProduct({ model: "DUP", barcode: "111" }),
       makeProduct({ model: "DUP", barcode: "222" }),
     ];
-    const result = convertToExcel(products, opts());
+    const result = await convertToExcel(products, opts());
     const dupWarnings = result.warnings.filter(
       (w) => w.type === "duplicate_ref",
     );
@@ -511,7 +517,7 @@ describe("convertToExcel — warnings", () => {
     expect(dupWarnings[0].model).toBe("DUP");
   });
 
-  it("warns about missing title", () => {
+  it("warns about missing title", async () => {
     const p = makeProduct({
       model: "NOTITLE",
       titleFR: "",
@@ -519,29 +525,29 @@ describe("convertToExcel — warnings", () => {
       titleNL: "",
       titleDE: "",
     });
-    const result = convertToExcel([p], opts({ descriptionLang: "FR" }));
+    const result = await convertToExcel([p], opts({ descriptionLang: "FR" }));
     expect(result.warnings).toContainEqual(
       expect.objectContaining({ type: "missing_title", model: "NOTITLE" }),
     );
   });
 
-  it("does not warn when title exists in fallback language", () => {
+  it("does not warn when title exists in fallback language", async () => {
     const p = makeProduct({ titleFR: "", titleEN: "Has EN title" });
-    const result = convertToExcel([p], opts({ descriptionLang: "FR" }));
+    const result = await convertToExcel([p], opts({ descriptionLang: "FR" }));
     expect(
       result.warnings.filter((w) => w.type === "missing_title"),
     ).toHaveLength(0);
   });
 
-  it("warns about missing price", () => {
+  it("warns about missing price", async () => {
     const p = makeProduct({ model: "NOPRICE", priceEXVAT: "", priceINVAT: "" });
-    const result = convertToExcel([p], opts());
+    const result = await convertToExcel([p], opts());
     expect(result.warnings).toContainEqual(
       expect.objectContaining({ type: "missing_price", model: "NOPRICE" }),
     );
   });
 
-  it("does not warn when at least one price is present", () => {
+  it("does not warn when at least one price is present", async () => {
     const p1 = makeProduct({ priceEXVAT: "100.00", priceINVAT: "" });
     const p2 = makeProduct({
       model: "B",
@@ -549,19 +555,19 @@ describe("convertToExcel — warnings", () => {
       priceEXVAT: "",
       priceINVAT: "121.00",
     });
-    const result = convertToExcel([p1, p2], opts());
+    const result = await convertToExcel([p1, p2], opts());
     expect(
       result.warnings.filter((w) => w.type === "missing_price"),
     ).toHaveLength(0);
   });
 
-  it("returns no warnings for a valid product", () => {
+  it("returns no warnings for a valid product", async () => {
     const p = makeProduct({ titleEN: "Valid", barcode: "1234567890123" });
-    const result = convertToExcel([p], opts({ descriptionLang: "EN" }));
+    const result = await convertToExcel([p], opts({ descriptionLang: "EN" }));
     expect(result.warnings).toHaveLength(0);
   });
 
-  it("accumulates multiple warnings across products", () => {
+  it("accumulates multiple warnings across products", async () => {
     const products = [
       makeProduct({
         model: "A",
@@ -575,7 +581,7 @@ describe("convertToExcel — warnings", () => {
       }),
       makeProduct({ model: "B", barcode: "", titleEN: "OK", priceEXVAT: "10" }),
     ];
-    const result = convertToExcel(products, opts({ descriptionLang: "EN" }));
+    const result = await convertToExcel(products, opts({ descriptionLang: "EN" }));
     expect(result.warnings.length).toBe(4);
   });
 });
@@ -583,23 +589,23 @@ describe("convertToExcel — warnings", () => {
 // ─── Multiple Products ──────────────────────────────────────────────────────
 
 describe("convertToExcel — multiple products", () => {
-  it("outputs one data row per product", () => {
+  it("outputs one data row per product", async () => {
     const products = [
       makeProduct({ model: "P1", barcode: "111" }),
       makeProduct({ model: "P2", barcode: "222" }),
       makeProduct({ model: "P3", barcode: "333" }),
     ];
-    const result = convertToExcel(products, opts());
+    const result = await convertToExcel(products, opts());
     expect(result.rows.length).toBe(3);
   });
 
-  it("preserves product order in output", () => {
+  it("preserves product order in output", async () => {
     const products = [
       makeProduct({ model: "ZZZ", barcode: "111" }),
       makeProduct({ model: "AAA", barcode: "222" }),
       makeProduct({ model: "MMM", barcode: "333" }),
     ];
-    const result = convertToExcel(products, opts());
+    const result = await convertToExcel(products, opts());
     expect(result.rows[0][0]).toBe("ZZZ");
     expect(result.rows[1][0]).toBe("AAA");
     expect(result.rows[2][0]).toBe("MMM");
@@ -628,7 +634,7 @@ describe("DEFAULT_OPTIONS", () => {
 // ─── Column Count Consistency ────────────────────────────────────────────────
 
 describe("convertToExcel — column consistency", () => {
-  it("has same number of columns in header and each data row", () => {
+  it("has same number of columns in header and each data row", async () => {
     const products = [
       makeProduct({ model: "A", barcode: "111", titleEN: "With; semicolon" }),
       makeProduct({
@@ -638,7 +644,7 @@ describe("convertToExcel — column consistency", () => {
       }),
       makeProduct({ model: "C", barcode: "333" }),
     ];
-    const result = convertToExcel(
+    const result = await convertToExcel(
       products,
       opts({
         includeBarcode: true,
@@ -653,8 +659,8 @@ describe("convertToExcel — column consistency", () => {
     }
   });
 
-  it("has consistent column count with minimal options", () => {
-    const result = convertToExcel(
+  it("has consistent column count with minimal options", async () => {
+    const result = await convertToExcel(
       [makeProduct()],
       opts({
         includeBarcode: false,
@@ -669,8 +675,8 @@ describe("convertToExcel — column consistency", () => {
     expect(result.headers.length).toBe(10);
   });
 
-  it("has correct column count with all options enabled", () => {
-    const result = convertToExcel(
+  it("has correct column count with all options enabled", async () => {
+    const result = await convertToExcel(
       [makeProduct()],
       opts({
         includeBarcode: true,

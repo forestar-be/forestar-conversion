@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Forestar — Conversions
 
-## Getting Started
+Outils internes de conversion de fichiers pour Forestar. L'application tourne entièrement côté client — aucune donnée n'est envoyée à un serveur.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 (App Router)
+- React 19
+- Tailwind CSS 4
+- Vitest (tests)
+
+## Démarrage
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrir http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Commande         | Description                |
+| ---------------- | -------------------------- |
+| `npm run dev`    | Serveur de développement   |
+| `npm run build`  | Build de production        |
+| `npm run start`  | Serveur de production      |
+| `npm run test`   | Lancer les tests           |
+| `npm run lint`   | Linter                     |
 
-## Learn More
+## Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/
+    page.tsx                              # Homepage — liste des conversions
+    conversions/
+      <slug>/
+        page.tsx                          # Page de la conversion
+  components/
+    ui/                                   # Composants UI partagés (shadcn)
+    conversions/
+      <slug>/                             # Composants spécifiques à une conversion
+  lib/
+    conversions/
+      registry.ts                         # Registre des conversions disponibles
+      <slug>/                             # Logique métier d'une conversion
+        __tests__/                        # Tests unitaires
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Ajouter une nouvelle conversion
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 1. Déclarer la conversion dans le registre
 
-## Deploy on Vercel
+Dans `src/lib/conversions/registry.ts`, ajouter une entrée au tableau `CONVERSIONS` :
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```ts
+{
+  slug: "mon-outil",
+  title: "Source → Destination",
+  description: "Description courte de la conversion",
+  from: "Format source",
+  to: "Format destination",
+}
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Le `slug` détermine l'URL (`/conversions/mon-outil`) et les noms de dossiers.
+
+### 2. Créer la logique métier
+
+Créer le dossier `src/lib/conversions/mon-outil/` avec les fichiers nécessaires (parser, convertisseur, types…). Ajouter les tests dans `__tests__/`.
+
+### 3. Créer les composants
+
+Créer le dossier `src/components/conversions/mon-outil/` avec les composants React de la conversion. Le composant principal est la page complète (upload, options, aperçu, téléchargement).
+
+### 4. Créer la route
+
+Créer `src/app/conversions/mon-outil/page.tsx` qui importe et affiche le composant principal :
+
+```tsx
+import MonOutilPage from "@/components/conversions/mon-outil/mon-outil-page";
+
+export default function Page() {
+  return <MonOutilPage />;
+}
+```
+
+La homepage affichera automatiquement la nouvelle conversion grâce au registre.
+
+## Conversion existante
+
+- **Valkenpower → Dolibarr** (`valkenpower-dolibarr`) : convertit les exports XML Valkenpower en Excel importable dans Dolibarr 22.

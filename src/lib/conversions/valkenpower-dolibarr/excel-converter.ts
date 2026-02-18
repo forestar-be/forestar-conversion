@@ -1,5 +1,9 @@
 import * as XLSX from "xlsx";
+import JSZip from "jszip";
 import { ValkenProduct, htmlToPlainText } from "./xml-parser";
+
+/** Maximum rows per Excel file (Dolibarr struggles with large files) */
+export const MAX_ROWS_PER_FILE = 800;
 
 export type DescriptionLang = "FR" | "EN" | "NL" | "DE";
 export type WeightSource = "product" | "package";
@@ -158,7 +162,8 @@ function buildColumns(options: ConversionOptions): ExcelColumn[] {
       },
       {
         header: "Unité de poids (p.weight_units)",
-        getValue: (p) => (getWeight(p, options.weightSource) > 0 ? "kg" : ""),
+        // Dolibarr expects the CODE from c_units table (uppercase), not the short_label
+        getValue: (p) => (getWeight(p, options.weightSource) > 0 ? "KG" : ""),
       },
     );
   }
@@ -172,7 +177,8 @@ function buildColumns(options: ConversionOptions): ExcelColumn[] {
       },
       {
         header: "Unité de longueur (p.length_units)",
-        getValue: (p) => (p.prodLength > 0 || p.packLength > 0 ? "mm" : ""),
+        // Dolibarr expects the CODE from c_units table (uppercase), not the short_label
+        getValue: (p) => (p.prodLength > 0 || p.packLength > 0 ? "MM" : ""),
       },
       {
         header: "Largeur (p.width)",
@@ -181,7 +187,8 @@ function buildColumns(options: ConversionOptions): ExcelColumn[] {
       },
       {
         header: "Unité de largeur (p.width_units)",
-        getValue: (p) => (p.prodWidth > 0 || p.packWidth > 0 ? "mm" : ""),
+        // Dolibarr expects the CODE from c_units table (uppercase), not the short_label
+        getValue: (p) => (p.prodWidth > 0 || p.packWidth > 0 ? "MM" : ""),
       },
       {
         header: "Hauteur (p.height)",
@@ -190,7 +197,8 @@ function buildColumns(options: ConversionOptions): ExcelColumn[] {
       },
       {
         header: "Unité de hauteur (p.height_units)",
-        getValue: (p) => (p.prodHeight > 0 || p.packHeight > 0 ? "mm" : ""),
+        // Dolibarr expects the CODE from c_units table (uppercase), not the short_label
+        getValue: (p) => (p.prodHeight > 0 || p.packHeight > 0 ? "MM" : ""),
       },
     );
   }
@@ -234,7 +242,12 @@ function buildColumns(options: ConversionOptions): ExcelColumn[] {
 }
 
 export interface ConversionResult {
-  excelBuffer: Uint8Array;
+  /** Output buffer (Excel or ZIP depending on isZip flag) */
+  buffer: Uint8Array;
+  /** True if the output is a ZIP containing multiple Excel files */
+  isZip: boolean;
+  /** Number of Excel files generated */
+  fileCount: number;
   headers: string[];
   rows: string[][];
   totalProducts: number;
@@ -252,10 +265,10 @@ export interface ConversionWarning {
   message: string;
 }
 
-export function convertToExcel(
+export async function convertToExcel(
   products: ValkenProduct[],
   options: ConversionOptions,
-): ConversionResult {
+): Promise<ConversionResult> {
   const columns = buildColumns(options);
   const warnings: ConversionWarning[] = [];
 
@@ -321,17 +334,53 @@ export function convertToExcel(
     rows.push(row);
   }
 
-  // Build Excel workbook
-  const wsData = [headers, ...rows];
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Produits");
-  const excelBuffer = new Uint8Array(
-    XLSX.write(wb, { type: "array", bookType: "xlsx" }),
-  );
+  // Single file case
+  if (rows.length <= MAX_ROWS_PER_FILE) {
+    const wsData = [headers, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Produits");
+    const buffer = new Uint8Array(
+      XLSX.write(wb, { type: "array", bookType: "xlsx" }),
+    );
+
+    return {
+      buffer,
+      isZip: false,
+      fileCount: 1,
+      headers,
+      rows,
+      totalProducts: products.length,
+      warnings,
+    };
+  }
+
+  // Multiple files case: split into chunks and create ZIP
+  const chunks: string[][][] = [];
+  for (let i = 0; i < rows.length; i += MAX_ROWS_PER_FILE) {
+    chunks.push(rows.slice(i, i + MAX_ROWS_PER_FILE));
+  }
+
+  const zip = new JSZip();
+  const fileCount = chunks.length;
+
+  for (let i = 0; i < chunks.length; i++) {
+    const wsData = [headers, ...chunks[i]];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Produits");
+    const excelBuffer = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+    zip.file(`produits_${i + 1}.xlsx`, excelBuffer);
+  }
+
+  // Generate ZIP synchronously using the internal generateInternalStream
+  const zipBuffer = zip.generateAsync({ type: "uint8array" });
 
   return {
-    excelBuffer,
+    // Note: This returns a Promise<Uint8Array>, caller must handle async
+    buffer: zipBuffer as unknown as Uint8Array,
+    isZip: true,
+    fileCount,
     headers,
     rows,
     totalProducts: products.length,

@@ -1,8 +1,11 @@
 import { describe, it, expect } from "vitest";
+import JSZip from "jszip";
+import * as XLSX from "xlsx";
 import {
   convertToExcel,
   DEFAULT_OPTIONS,
   ConversionOptions,
+  MAX_ROWS_PER_FILE,
 } from "../excel-converter";
 import { ValkenProduct } from "../xml-parser";
 
@@ -688,5 +691,77 @@ describe("convertToExcel — column consistency", () => {
     );
     // 10 base + 1 url + 2 weight + 6 dims + 1 price_min + 1 barcode = 21
     expect(result.headers.length).toBe(21);
+  });
+});
+
+// ─── ZIP Splitting ───────────────────────────────────────────────────────────
+
+describe("convertToExcel — ZIP splitting", () => {
+  function makeProducts(count: number): ValkenProduct[] {
+    return Array.from({ length: count }, (_, i) =>
+      makeProduct({
+        model: `P${i}`,
+        barcode: `${1000000000000 + i}`,
+      }),
+    );
+  }
+
+  it("returns a single Excel when products <= MAX_ROWS_PER_FILE", async () => {
+    const result = await convertToExcel(makeProducts(MAX_ROWS_PER_FILE), opts());
+    expect(result.isZip).toBe(false);
+    expect(result.fileCount).toBe(1);
+  });
+
+  it("returns a ZIP when products > MAX_ROWS_PER_FILE", async () => {
+    const result = await convertToExcel(makeProducts(MAX_ROWS_PER_FILE + 1), opts());
+    expect(result.isZip).toBe(true);
+    expect(result.fileCount).toBe(2);
+  });
+
+  it("generates a valid ZIP containing valid Excel files", async () => {
+    const count = MAX_ROWS_PER_FILE + 10;
+    const result = await convertToExcel(makeProducts(count), opts());
+
+    expect(result.isZip).toBe(true);
+    expect(result.buffer).toBeInstanceOf(Uint8Array);
+    expect(result.buffer.byteLength).toBeGreaterThan(0);
+
+    // Parse the ZIP
+    const zip = await JSZip.loadAsync(result.buffer);
+    const fileNames = Object.keys(zip.files);
+    expect(fileNames).toHaveLength(2);
+    expect(fileNames).toContain("produits_1.xlsx");
+    expect(fileNames).toContain("produits_2.xlsx");
+
+    // Verify each Excel file inside the ZIP is valid and has correct row counts
+    const file1 = await zip.file("produits_1.xlsx")!.async("uint8array");
+    const wb1 = XLSX.read(file1, { type: "array" });
+    const ws1 = wb1.Sheets[wb1.SheetNames[0]];
+    const data1 = XLSX.utils.sheet_to_json(ws1, { header: 1 }) as string[][];
+    // First row is header, rest are data
+    expect(data1.length - 1).toBe(MAX_ROWS_PER_FILE);
+
+    const file2 = await zip.file("produits_2.xlsx")!.async("uint8array");
+    const wb2 = XLSX.read(file2, { type: "array" });
+    const ws2 = wb2.Sheets[wb2.SheetNames[0]];
+    const data2 = XLSX.utils.sheet_to_json(ws2, { header: 1 }) as string[][];
+    expect(data2.length - 1).toBe(10);
+  });
+
+  it("splits into correct number of files", async () => {
+    const count = MAX_ROWS_PER_FILE * 3 + 50;
+    const result = await convertToExcel(makeProducts(count), opts());
+    expect(result.isZip).toBe(true);
+    expect(result.fileCount).toBe(4);
+
+    const zip = await JSZip.loadAsync(result.buffer);
+    expect(Object.keys(zip.files)).toHaveLength(4);
+  });
+
+  it("preserves all rows across split files", async () => {
+    const count = MAX_ROWS_PER_FILE + 10;
+    const result = await convertToExcel(makeProducts(count), opts());
+    expect(result.rows.length).toBe(count);
+    expect(result.totalProducts).toBe(count);
   });
 });

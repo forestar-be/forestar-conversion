@@ -90,5 +90,6 @@ La homepage affichera automatiquement la nouvelle conversion grâce au registre.
 
 ## Conversions existantes
 
-- **Valkenpower → Dolibarr** (`valkenpower-dolibarr`) : convertit les exports XML Valkenpower en Excel importable dans Dolibarr 22.
+- **Valkenpower → Dolibarr** (`valkenpower-dolibarr`) : convertit les exports XML Valkenpower en Excel importable dans Dolibarr 22. Inclut des options de modification de références et de prix (HT/TTC) avec recalcul automatique via le taux TVA.
 - **Modification de références** (`modification-refs`) : modifie des références produit en masse (préfixe, suffixe, chercher/remplacer, regex) et génère un Excel avec Ref / Nouvelle Ref pour import Dolibarr.
+- **Modification de prix** (`modification-prix`) : modifie des prix en masse à partir d'un fichier Excel Dolibarr ou d'un collé texte (ref + prix). Supporte les opérations fixe et pourcentage, le choix de la cible HT ou TTC avec recalcul automatique du prix complémentaire via le taux TVA. Génère un Excel au format Dolibarr (Ref, Prix HT, Prix min, Prix TTC, Taux TVA, PriceBaseType).

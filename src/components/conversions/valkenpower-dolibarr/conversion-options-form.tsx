@@ -16,7 +16,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import {
+  RefOperationForm,
+  RefOperationState,
+  DEFAULT_REF_OPERATION_STATE,
+  buildOperation,
+} from "@/components/ui/ref-operation-form";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 interface ConversionOptionsFormProps {
   options: ConversionOptions;
@@ -29,11 +37,32 @@ export function ConversionOptionsForm({
   onChange,
   className,
 }: ConversionOptionsFormProps) {
+  const [refModifyEnabled, setRefModifyEnabled] = useState(
+    !!options.refOperation,
+  );
+  const [refOpState, setRefOpState] = useState<RefOperationState>(
+    DEFAULT_REF_OPERATION_STATE,
+  );
+
   const update = <K extends keyof ConversionOptions>(
     key: K,
     value: ConversionOptions[K],
   ) => {
     onChange({ ...options, [key]: value });
+  };
+
+  const handleRefModifyToggle = (enabled: boolean) => {
+    setRefModifyEnabled(enabled);
+    if (!enabled) {
+      onChange({ ...options, refOperation: null });
+    } else {
+      onChange({ ...options, refOperation: buildOperation(refOpState) });
+    }
+  };
+
+  const handleRefOpChange = (state: RefOperationState) => {
+    setRefOpState(state);
+    onChange({ ...options, refOperation: buildOperation(state) });
   };
 
   return (
@@ -186,6 +215,26 @@ export function ConversionOptionsForm({
               onCheckedChange={(v) => update("toBuy", v)}
             />
           </div>
+        </div>
+
+        {/* Ref modification */}
+        <Separator />
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="sw-ref-modify">Modifier les références</Label>
+            <Switch
+              id="sw-ref-modify"
+              checked={refModifyEnabled}
+              onCheckedChange={handleRefModifyToggle}
+            />
+          </div>
+          {refModifyEnabled && (
+            <RefOperationForm
+              state={refOpState}
+              onChange={handleRefOpChange}
+              idPrefix="vk-ref-op"
+            />
+          )}
         </div>
       </CardContent>
     </Card>

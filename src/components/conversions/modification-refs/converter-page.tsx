@@ -2,8 +2,6 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import {
-  Operation,
-  OperationType,
   applyToRefs,
   ModificationResult,
 } from "@/lib/conversions/modification-refs/ref-modifier";
@@ -17,16 +15,14 @@ import { useHeaderConfig } from "@/components/header-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  RefOperationForm,
+  RefOperationState,
+  DEFAULT_REF_OPERATION_STATE,
+  buildOperation,
+} from "@/components/ui/ref-operation-form";
 import {
   Table,
   TableBody,
@@ -50,15 +46,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-const OPERATION_LABELS: Record<OperationType, string> = {
-  "add-prefix": "Ajouter un préfixe",
-  "add-suffix": "Ajouter un suffixe",
-  "remove-prefix": "Supprimer un préfixe",
-  "remove-suffix": "Supprimer un suffixe",
-  "find-replace": "Chercher / Remplacer",
-  "regex-replace": "Regex (rechercher / remplacer)",
-};
-
 const PAGE_SIZE = 20;
 
 export default function ConverterPage() {
@@ -66,11 +53,9 @@ export default function ConverterPage() {
   const [textInput, setTextInput] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [operationType, setOperationType] =
-    useState<OperationType>("add-prefix");
-  const [paramA, setParamA] = useState("");
-  const [paramB, setParamB] = useState("");
-  const [regexFlags, setRegexFlags] = useState("");
+  const [refOpState, setRefOpState] = useState<RefOperationState>(
+    DEFAULT_REF_OPERATION_STATE,
+  );
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const { setConfig } = useHeaderConfig();
@@ -80,9 +65,7 @@ export default function ConverterPage() {
     setTextInput("");
     setFileName(null);
     setError(null);
-    setParamA("");
-    setParamB("");
-    setRegexFlags("");
+    setRefOpState(DEFAULT_REF_OPERATION_STATE);
     setSearch("");
     setPage(0);
   }, []);
@@ -103,36 +86,10 @@ export default function ConverterPage() {
   }, [setConfig, refs.length, handleReset]);
 
   // Build the operation from current form state
-  const operation: Operation | null = useMemo(() => {
-    switch (operationType) {
-      case "add-prefix":
-        return paramA ? { type: "add-prefix", prefix: paramA } : null;
-      case "add-suffix":
-        return paramA ? { type: "add-suffix", suffix: paramA } : null;
-      case "remove-prefix":
-        return paramA ? { type: "remove-prefix", prefix: paramA } : null;
-      case "remove-suffix":
-        return paramA ? { type: "remove-suffix", suffix: paramA } : null;
-      case "find-replace":
-        return paramA
-          ? { type: "find-replace", search: paramA, replace: paramB }
-          : null;
-      case "regex-replace": {
-        if (!paramA) return null;
-        try {
-          new RegExp(paramA, regexFlags + "g");
-        } catch {
-          return null;
-        }
-        return {
-          type: "regex-replace",
-          pattern: paramA,
-          flags: regexFlags,
-          replace: paramB,
-        };
-      }
-    }
-  }, [operationType, paramA, paramB, regexFlags]);
+  const operation = useMemo(
+    () => buildOperation(refOpState),
+    [refOpState],
+  );
 
   // Live preview
   const results: ModificationResult[] = useMemo(() => {
@@ -353,119 +310,9 @@ export default function ConverterPage() {
                 <CardTitle className="text-lg">Opération</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="op-type">Type</Label>
-                  <Select
-                    value={operationType}
-                    onValueChange={(v) => {
-                      setOperationType(v as OperationType);
-                      setParamA("");
-                      setParamB("");
-                      setRegexFlags("");
-                    }}
-                  >
-                    <SelectTrigger id="op-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(OPERATION_LABELS).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>
-                          {label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <RefOperationForm state={refOpState} onChange={setRefOpState} />
 
-                {/* Param fields based on operation type */}
-                {(operationType === "add-prefix" ||
-                  operationType === "remove-prefix") && (
-                  <div className="space-y-2">
-                    <Label htmlFor="param-prefix">Préfixe</Label>
-                    <input
-                      id="param-prefix"
-                      type="text"
-                      value={paramA}
-                      onChange={(e) => setParamA(e.target.value)}
-                      placeholder="ex: PFX-"
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm font-mono shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring"
-                    />
-                  </div>
-                )}
-
-                {(operationType === "add-suffix" ||
-                  operationType === "remove-suffix") && (
-                  <div className="space-y-2">
-                    <Label htmlFor="param-suffix">Suffixe</Label>
-                    <input
-                      id="param-suffix"
-                      type="text"
-                      value={paramA}
-                      onChange={(e) => setParamA(e.target.value)}
-                      placeholder="ex: -V2"
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm font-mono shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring"
-                    />
-                  </div>
-                )}
-
-                {(operationType === "find-replace" ||
-                  operationType === "regex-replace") && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="param-search">
-                        {operationType === "regex-replace"
-                          ? "Pattern (regex)"
-                          : "Chercher"}
-                      </Label>
-                      <input
-                        id="param-search"
-                        type="text"
-                        value={paramA}
-                        onChange={(e) => setParamA(e.target.value)}
-                        placeholder={
-                          operationType === "regex-replace"
-                            ? "ex: ^(\\w+)-(\\d+)$"
-                            : "ex: OLD"
-                        }
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm font-mono shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="param-replace">Remplacer par</Label>
-                      <input
-                        id="param-replace"
-                        type="text"
-                        value={paramB}
-                        onChange={(e) => setParamB(e.target.value)}
-                        placeholder={
-                          operationType === "regex-replace"
-                            ? "ex: $2-$1"
-                            : "ex: NEW"
-                        }
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm font-mono shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring"
-                      />
-                    </div>
-                    {operationType === "regex-replace" && (
-                      <div className="space-y-2">
-                        <Label htmlFor="param-flags">Flags</Label>
-                        <input
-                          id="param-flags"
-                          type="text"
-                          value={regexFlags}
-                          onChange={(e) => setRegexFlags(e.target.value)}
-                          placeholder="ex: i"
-                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm font-mono shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:border-ring"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          i = insensible à la casse. Le flag g est ajouté
-                          automatiquement.
-                        </p>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {!operation && paramA === "" && (
+                {!operation && refOpState.paramA === "" && (
                   <p className="text-xs text-muted-foreground">
                     Renseignez les paramètres pour voir l&apos;aperçu.
                   </p>

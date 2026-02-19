@@ -5,6 +5,12 @@ import {
   Operation,
   applyOperation,
 } from "@/lib/conversions/modification-refs/ref-modifier";
+import {
+  PriceOperation,
+  PriceTarget,
+  applyPriceOperationToString,
+  recomputePrice,
+} from "@/lib/conversions/modification-prix/price-modifier";
 
 /** Maximum rows per Excel file (Dolibarr struggles with large files) */
 export const MAX_ROWS_PER_FILE = 800;
@@ -42,6 +48,10 @@ export interface ConversionOptions {
   dimensionSourceUnit: DimensionUnit;
   /** Optional operation to transform refs during conversion */
   refOperation?: Operation | null;
+  /** Optional operation to transform prices during conversion */
+  priceOperation?: PriceOperation | null;
+  /** Which price columns to apply the price operation to */
+  priceTarget?: PriceTarget;
 }
 
 export const DEFAULT_OPTIONS: ConversionOptions = {
@@ -59,6 +69,8 @@ export const DEFAULT_OPTIONS: ConversionOptions = {
   includePriceMin: true,
   dimensionSourceUnit: "mm",
   refOperation: null,
+  priceOperation: null,
+  priceTarget: "HT",
 };
 
 interface ExcelColumn {
@@ -214,22 +226,43 @@ function buildColumns(options: ConversionOptions): ExcelColumn[] {
   }
 
   // Price columns
+  const target = options.priceTarget ?? "HT";
+  const tvaRateStr = options.tvaRate.toFixed(1);
+  const computePrices = (ht: string, ttc: string, min: string) => {
+    if (!options.priceOperation) return { ht, ttc, min };
+    if (target === "HT") {
+      const newHT = applyPriceOperationToString(ht, options.priceOperation);
+      const newMin = applyPriceOperationToString(min, options.priceOperation);
+      const newTTC = recomputePrice(newHT, tvaRateStr, "toTTC") || ttc;
+      return { ht: newHT, ttc: newTTC, min: newMin };
+    }
+    // target === "TTC"
+    const newTTC = applyPriceOperationToString(ttc, options.priceOperation);
+    const newHT = recomputePrice(newTTC, tvaRateStr, "toHT") || ht;
+    return { ht: newHT, ttc: newTTC, min };
+  };
+
   columns.push({
     header: "Prix de vente HT (p.price)",
-    getValue: (p) => p.priceEXVAT || "",
+    getValue: (p) =>
+      computePrices(p.priceEXVAT, p.priceINVAT, p.specialpriceEXVAT).ht || "",
   });
 
   if (options.includePriceMin) {
     columns.push({
       header: "Prix de vente min. (p.price_min)",
-      getValue: (p) => p.specialpriceEXVAT || "",
+      getValue: (p) =>
+        computePrices(p.priceEXVAT, p.priceINVAT, p.specialpriceEXVAT).min ||
+        "",
     });
   }
 
   columns.push(
     {
       header: "Prix de vente TTC (p.price_ttc)",
-      getValue: (p) => p.priceINVAT || "",
+      getValue: (p) =>
+        computePrices(p.priceEXVAT, p.priceINVAT, p.specialpriceEXVAT).ttc ||
+        "",
     },
     {
       header: "Taux TVA (p.tva_tx)",

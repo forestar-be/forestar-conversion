@@ -235,8 +235,10 @@ describe("htmlToPlainText", () => {
   });
 
   it("handles nested tags", () => {
+    // List items are separated with pipes to avoid Dolibarr WAF false positives
+    // (e.g., "tonwheels =" being detected as XSS "onwheels=")
     expect(
       htmlToPlainText("<div><ul><li>Item 1</li><li>Item 2</li></ul></div>"),
-    ).toBe("Item 1Item 2");
+    ).toBe("Item 1 | Item 2");
   });
 });

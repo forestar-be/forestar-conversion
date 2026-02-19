@@ -400,10 +400,10 @@ describe("convertToExcel — weight source", () => {
     expect(result.rows[0]).toContain("7.2");
   });
 
-  it("outputs weight unit 'KG' when weight > 0", async () => {
+  it("outputs weight unit 'kg' when weight > 0", async () => {
     const p = makeProduct({ packWeight: 7.2 });
     const result = await convertToExcel([p], opts({ includeWeight: true }));
-    expect(result.rows[0]).toContain("KG");
+    expect(result.rows[0]).toContain("kg");
   });
 
   it("outputs empty weight unit when weight is 0", async () => {
@@ -442,10 +442,10 @@ describe("convertToExcel — dimensions", () => {
     expect(result.rows[0]).toContain("200");
   });
 
-  it("outputs 'MM' as dimension unit when dimension > 0", async () => {
+  it("outputs 'mm' as dimension unit when dimension > 0", async () => {
     const p = makeProduct({ prodLength: 300 });
     const result = await convertToExcel([p], opts({ includeDimensions: true }));
-    expect(result.rows[0]).toContain("MM");
+    expect(result.rows[0]).toContain("mm");
   });
 
   it("outputs empty dimension values when all dimensions are 0", async () => {

@@ -59,18 +59,28 @@ function decodeHtmlEntities(text: string): string {
 
 /**
  * Convert HTML description to plain text with pipe separators (Dolibarr convention).
+ * Ensures proper spacing to avoid triggering Dolibarr WAF false positives
+ * (e.g., "tonwheels =" being detected as "onwheels=" XSS pattern).
  */
 export function htmlToPlainText(html: string): string {
   const decoded = decodeHtmlEntities(html);
-  return decoded
-    .replace(/<br\s*\/?>/gi, " | ")
-    .replace(/<\/p>\s*<p>/gi, " | ")
-    .replace(/<[^>]*>/g, "")
-    .replace(/\s*\|\s*\|\s*/g, " | ")
-    .replace(/^\s*\|\s*/, "")
-    .replace(/\s*\|\s*$/, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return (
+    decoded
+      .replace(/<br\s*\/?>/gi, " | ")
+      .replace(/<\/p>\s*<p>/gi, " | ")
+      // Handle list items: </li><li> or </li></ul> etc. should have separators
+      .replace(/<\/li>\s*<li>/gi, " | ")
+      .replace(/<\/li>/gi, " | ")
+      .replace(/<li>/gi, "")
+      // Remove remaining tags
+      .replace(/<[^>]*>/g, "")
+      // Clean up multiple pipes and spaces
+      .replace(/\s*\|\s*\|\s*/g, " | ")
+      .replace(/^\s*\|\s*/, "")
+      .replace(/\s*\|\s*$/, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 export function parseValkenXml(xmlContent: string): ValkenProduct[] {

@@ -162,8 +162,8 @@ function buildColumns(options: ConversionOptions): ExcelColumn[] {
       },
       {
         header: "Unité de poids (p.weight_units)",
-        // Dolibarr expects the CODE from c_units table (uppercase), not the short_label
-        getValue: (p) => (getWeight(p, options.weightSource) > 0 ? "KG" : ""),
+        // Dolibarr import resolves via CUnits::fetch('','', $short_label, $unit_type)
+        getValue: (p) => (getWeight(p, options.weightSource) > 0 ? "kg" : ""),
       },
     );
   }
@@ -177,8 +177,8 @@ function buildColumns(options: ConversionOptions): ExcelColumn[] {
       },
       {
         header: "Unité de longueur (p.length_units)",
-        // Dolibarr expects the CODE from c_units table (uppercase), not the short_label
-        getValue: (p) => (p.prodLength > 0 || p.packLength > 0 ? "MM" : ""),
+        // Dolibarr import resolves via CUnits::fetch('','', $short_label, $unit_type)
+        getValue: (p) => (p.prodLength > 0 || p.packLength > 0 ? "mm" : ""),
       },
       {
         header: "Largeur (p.width)",
@@ -187,8 +187,8 @@ function buildColumns(options: ConversionOptions): ExcelColumn[] {
       },
       {
         header: "Unité de largeur (p.width_units)",
-        // Dolibarr expects the CODE from c_units table (uppercase), not the short_label
-        getValue: (p) => (p.prodWidth > 0 || p.packWidth > 0 ? "MM" : ""),
+        // Dolibarr import resolves via CUnits::fetch('','', $short_label, $unit_type)
+        getValue: (p) => (p.prodWidth > 0 || p.packWidth > 0 ? "mm" : ""),
       },
       {
         header: "Hauteur (p.height)",
@@ -197,8 +197,8 @@ function buildColumns(options: ConversionOptions): ExcelColumn[] {
       },
       {
         header: "Unité de hauteur (p.height_units)",
-        // Dolibarr expects the CODE from c_units table (uppercase), not the short_label
-        getValue: (p) => (p.prodHeight > 0 || p.packHeight > 0 ? "MM" : ""),
+        // Dolibarr import resolves via CUnits::fetch('','', $short_label, $unit_type)
+        getValue: (p) => (p.prodHeight > 0 || p.packHeight > 0 ? "mm" : ""),
       },
     );
   }

@@ -20,4 +20,12 @@ export const CONVERSIONS: ConversionDefinition[] = [
     from: "XML Valkenpower",
     to: "Excel Dolibarr 22",
   },
+  {
+    slug: "modification-refs",
+    title: "Modification de références",
+    description:
+      "Modifier des références produit en masse (préfixe, suffixe, chercher/remplacer…)",
+    from: "Liste de références",
+    to: "Excel Dolibarr",
+  },
 ];

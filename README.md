@@ -88,6 +88,7 @@ export default function Page() {
 
 La homepage affichera automatiquement la nouvelle conversion grâce au registre.
 
-## Conversion existante
+## Conversions existantes
 
 - **Valkenpower → Dolibarr** (`valkenpower-dolibarr`) : convertit les exports XML Valkenpower en Excel importable dans Dolibarr 22.
+- **Modification de références** (`modification-refs`) : modifie des références produit en masse (préfixe, suffixe, chercher/remplacer, regex) et génère un Excel avec Ref / Nouvelle Ref pour import Dolibarr.

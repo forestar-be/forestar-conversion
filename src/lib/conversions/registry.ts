@@ -36,4 +36,12 @@ export const CONVERSIONS: ConversionDefinition[] = [
     from: "Liste de prix",
     to: "Excel Dolibarr",
   },
+  {
+    slug: "fusion-excel",
+    title: "Fusion de fichiers Excel",
+    description:
+      "Fusionner deux fichiers Excel en remplaçant des colonnes à partir d'un fichier source (titres, descriptions…)",
+    from: "2 fichiers Excel",
+    to: "Excel fusionné",
+  },
 ];

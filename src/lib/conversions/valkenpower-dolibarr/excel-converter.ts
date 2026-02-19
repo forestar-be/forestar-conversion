@@ -1,6 +1,10 @@
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
 import { ValkenProduct, htmlToPlainText } from "./xml-parser";
+import {
+  Operation,
+  applyOperation,
+} from "@/lib/conversions/modification-refs/ref-modifier";
 
 /** Maximum rows per Excel file (Dolibarr struggles with large files) */
 export const MAX_ROWS_PER_FILE = 800;
@@ -36,6 +40,8 @@ export interface ConversionOptions {
   includePriceMin: boolean;
   /** Unit for dimensions in XML (Valkenpower uses mm) */
   dimensionSourceUnit: DimensionUnit;
+  /** Optional operation to transform refs during conversion */
+  refOperation?: Operation | null;
 }
 
 export const DEFAULT_OPTIONS: ConversionOptions = {
@@ -52,6 +58,7 @@ export const DEFAULT_OPTIONS: ConversionOptions = {
   includeUrl: true,
   includePriceMin: true,
   dimensionSourceUnit: "mm",
+  refOperation: null,
 };
 
 interface ExcelColumn {
@@ -123,7 +130,10 @@ function buildColumns(options: ConversionOptions): ExcelColumn[] {
   const columns: ExcelColumn[] = [
     {
       header: "Réf.* (p.ref)",
-      getValue: (p) => p.model,
+      getValue: (p) =>
+        options.refOperation
+          ? applyOperation(p.model, options.refOperation)
+          : p.model,
     },
     {
       header: "Libellé* (p.label)",
@@ -281,6 +291,10 @@ export async function convertToExcel(
   // Build data rows
   const rows: string[][] = [];
   for (const product of products) {
+    const outputRef = options.refOperation
+      ? applyOperation(product.model, options.refOperation)
+      : product.model;
+
     // Validation warnings
     if (options.includeBarcode && !product.barcode) {
       warnings.push({
@@ -303,13 +317,13 @@ export async function convertToExcel(
       }
     }
 
-    const refCount = (seenRefs.get(product.model) ?? 0) + 1;
-    seenRefs.set(product.model, refCount);
+    const refCount = (seenRefs.get(outputRef) ?? 0) + 1;
+    seenRefs.set(outputRef, refCount);
     if (refCount > 1) {
       warnings.push({
         type: "duplicate_ref",
         model: product.model,
-        message: `Référence "${product.model}" dupliquée (occurrence #${refCount})`,
+        message: `Référence "${outputRef}" dupliquée (occurrence #${refCount})`,
       });
     }
 

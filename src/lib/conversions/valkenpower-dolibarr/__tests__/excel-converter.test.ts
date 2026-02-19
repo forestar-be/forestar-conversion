@@ -8,6 +8,7 @@ import {
   MAX_ROWS_PER_FILE,
 } from "../excel-converter";
 import { ValkenProduct } from "../xml-parser";
+import { Operation } from "@/lib/conversions/modification-refs/ref-modifier";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -763,5 +764,101 @@ describe("convertToExcel — ZIP splitting", () => {
     const result = await convertToExcel(makeProducts(count), opts());
     expect(result.rows.length).toBe(count);
     expect(result.totalProducts).toBe(count);
+  });
+});
+
+// ─── Ref Operation ───────────────────────────────────────────────────────────
+
+describe("convertToExcel — refOperation", () => {
+  it("applies add-prefix to refs in output", async () => {
+    const op: Operation = { type: "add-prefix", prefix: "FK-" };
+    const result = await convertToExcel(
+      [makeProduct({ model: "CS50" })],
+      opts({ refOperation: op }),
+    );
+    expect(result.rows[0][0]).toBe("FK-CS50");
+  });
+
+  it("applies add-suffix to refs in output", async () => {
+    const op: Operation = { type: "add-suffix", suffix: "-V2" };
+    const result = await convertToExcel(
+      [makeProduct({ model: "CS50" })],
+      opts({ refOperation: op }),
+    );
+    expect(result.rows[0][0]).toBe("CS50-V2");
+  });
+
+  it("applies remove-prefix to refs in output", async () => {
+    const op: Operation = { type: "remove-prefix", prefix: "VK-" };
+    const result = await convertToExcel(
+      [makeProduct({ model: "VK-CS50" })],
+      opts({ refOperation: op }),
+    );
+    expect(result.rows[0][0]).toBe("CS50");
+  });
+
+  it("applies find-replace to refs in output", async () => {
+    const op: Operation = { type: "find-replace", search: "-", replace: "_" };
+    const result = await convertToExcel(
+      [makeProduct({ model: "A-B-C" })],
+      opts({ refOperation: op }),
+    );
+    expect(result.rows[0][0]).toBe("A_B_C");
+  });
+
+  it("applies regex-replace to refs in output", async () => {
+    const op: Operation = {
+      type: "regex-replace",
+      pattern: "^(\\w+)-(\\d+)$",
+      flags: "",
+      replace: "$2-$1",
+    };
+    const result = await convertToExcel(
+      [makeProduct({ model: "CS-50" })],
+      opts({ refOperation: op }),
+    );
+    expect(result.rows[0][0]).toBe("50-CS");
+  });
+
+  it("does not modify refs when refOperation is null", async () => {
+    const result = await convertToExcel(
+      [makeProduct({ model: "CS50" })],
+      opts({ refOperation: null }),
+    );
+    expect(result.rows[0][0]).toBe("CS50");
+  });
+
+  it("does not modify refs when refOperation is undefined", async () => {
+    const o = opts();
+    delete (o as Partial<ConversionOptions>).refOperation;
+    const result = await convertToExcel([makeProduct({ model: "CS50" })], o);
+    expect(result.rows[0][0]).toBe("CS50");
+  });
+
+  it("detects duplicate refs after transformation", async () => {
+    const op: Operation = { type: "remove-prefix", prefix: "A-" };
+    const products = [
+      makeProduct({ model: "A-DUP", barcode: "111" }),
+      makeProduct({ model: "DUP", barcode: "222" }),
+    ];
+    const result = await convertToExcel(products, opts({ refOperation: op }));
+    const dupWarnings = result.warnings.filter(
+      (w) => w.type === "duplicate_ref",
+    );
+    expect(dupWarnings).toHaveLength(1);
+    expect(dupWarnings[0].message).toContain("DUP");
+  });
+
+  it("does not warn for non-duplicate refs that differ before transformation", async () => {
+    const op: Operation = { type: "add-prefix", prefix: "FK-" };
+    const products = [
+      makeProduct({ model: "A1", barcode: "111" }),
+      makeProduct({ model: "A2", barcode: "222" }),
+    ];
+    const result = await convertToExcel(products, opts({ refOperation: op }));
+    const dupWarnings = result.warnings.filter(
+      (w) => w.type === "duplicate_ref",
+    );
+    expect(dupWarnings).toHaveLength(0);
   });
 });

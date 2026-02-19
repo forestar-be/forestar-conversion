@@ -28,4 +28,12 @@ export const CONVERSIONS: ConversionDefinition[] = [
     from: "Liste de références",
     to: "Excel Dolibarr",
   },
+  {
+    slug: "modification-prix",
+    title: "Modification de prix",
+    description:
+      "Modifier des prix en masse (augmenter/réduire d'un montant fixe ou d'un pourcentage)",
+    from: "Liste de prix",
+    to: "Excel Dolibarr",
+  },
 ];

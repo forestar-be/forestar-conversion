@@ -9,6 +9,7 @@ import {
 } from "../excel-converter";
 import { ValkenProduct } from "../xml-parser";
 import { Operation } from "@/lib/conversions/modification-refs/ref-modifier";
+import { PriceOperation } from "@/lib/conversions/modification-prix/price-modifier";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -860,5 +861,109 @@ describe("convertToExcel — refOperation", () => {
       (w) => w.type === "duplicate_ref",
     );
     expect(dupWarnings).toHaveLength(0);
+  });
+});
+
+// ─── Price Operation ─────────────────────────────────────────────────────────
+
+describe("convertToExcel — priceOperation", () => {
+  it("applies increase-percent to HT+MIN and recalculates TTC when target is HT", async () => {
+    const op: PriceOperation = { type: "increase-percent", percent: 10 };
+    const p = makeProduct({ priceEXVAT: "100.00", priceINVAT: "121.00", specialpriceEXVAT: "90.00" });
+    const result = await convertToExcel([p], opts({ priceOperation: op, priceTarget: "HT" }));
+    const priceHtIdx = result.headers.findIndex((h) => h.includes("p.price)"));
+    const priceTtcIdx = result.headers.findIndex((h) => h.includes("p.price_ttc)"));
+    const priceMinIdx = result.headers.findIndex((h) => h.includes("p.price_min)"));
+    expect(result.rows[0][priceHtIdx]).toBe("110.00");
+    expect(result.rows[0][priceMinIdx]).toBe("99.00");
+    // TTC recalculated: 110 * 1.21 = 133.10
+    expect(result.rows[0][priceTtcIdx]).toBe("133.10");
+  });
+
+  it("applies increase-percent to TTC and recalculates HT when target is TTC", async () => {
+    const op: PriceOperation = { type: "increase-percent", percent: 10 };
+    const p = makeProduct({ priceEXVAT: "100.00", priceINVAT: "121.00", specialpriceEXVAT: "90.00" });
+    const result = await convertToExcel([p], opts({ priceOperation: op, priceTarget: "TTC" }));
+    const priceHtIdx = result.headers.findIndex((h) => h.includes("p.price)"));
+    const priceTtcIdx = result.headers.findIndex((h) => h.includes("p.price_ttc)"));
+    const priceMinIdx = result.headers.findIndex((h) => h.includes("p.price_min)"));
+    // TTC: 121 * 1.10 = 133.10
+    expect(result.rows[0][priceTtcIdx]).toBe("133.10");
+    // HT recalculated: 133.10 / 1.21 = 110.00
+    expect(result.rows[0][priceHtIdx]).toBe("110.00");
+    // MIN unchanged
+    expect(result.rows[0][priceMinIdx]).toBe("90.00");
+  });
+
+  it("defaults to HT target and recalculates TTC", async () => {
+    const op: PriceOperation = { type: "decrease-fixed", amount: 5 };
+    const p = makeProduct({ priceEXVAT: "100.00", priceINVAT: "121.00" });
+    const result = await convertToExcel([p], opts({ priceOperation: op }));
+    const priceHtIdx = result.headers.findIndex((h) => h.includes("p.price)"));
+    const priceTtcIdx = result.headers.findIndex((h) => h.includes("p.price_ttc)"));
+    expect(result.rows[0][priceHtIdx]).toBe("95.00");
+    // TTC recalculated: 95 * 1.21 = 114.95
+    expect(result.rows[0][priceTtcIdx]).toBe("114.95");
+  });
+
+  it("recalculates HT correctly with fixed TTC increase", async () => {
+    const op: PriceOperation = { type: "increase-fixed", amount: 10 };
+    const p = makeProduct({ priceEXVAT: "100.00", priceINVAT: "121.00" });
+    const result = await convertToExcel([p], opts({ priceOperation: op, priceTarget: "TTC" }));
+    const priceHtIdx = result.headers.findIndex((h) => h.includes("p.price)"));
+    const priceTtcIdx = result.headers.findIndex((h) => h.includes("p.price_ttc)"));
+    expect(result.rows[0][priceTtcIdx]).toBe("131.00");
+    // HT: 131 / 1.21 = 108.26
+    expect(result.rows[0][priceHtIdx]).toBe("108.26");
+  });
+
+  it("uses correct TVA rate for recalculation", async () => {
+    const op: PriceOperation = { type: "increase-percent", percent: 10 };
+    const p = makeProduct({ priceEXVAT: "100.00", priceINVAT: "106.00" });
+    const result = await convertToExcel([p], opts({ priceOperation: op, priceTarget: "HT", tvaRate: 6.0 }));
+    const priceHtIdx = result.headers.findIndex((h) => h.includes("p.price)"));
+    const priceTtcIdx = result.headers.findIndex((h) => h.includes("p.price_ttc)"));
+    expect(result.rows[0][priceHtIdx]).toBe("110.00");
+    // TTC: 110 * 1.06 = 116.60
+    expect(result.rows[0][priceTtcIdx]).toBe("116.60");
+  });
+
+  it("does not modify prices when priceOperation is null", async () => {
+    const p = makeProduct({ priceEXVAT: "100.00" });
+    const result = await convertToExcel([p], opts({ priceOperation: null }));
+    const priceHtIdx = result.headers.findIndex((h) => h.includes("p.price)"));
+    expect(result.rows[0][priceHtIdx]).toBe("100.00");
+  });
+
+  it("does not modify prices when priceOperation is undefined", async () => {
+    const o = opts();
+    delete (o as Partial<ConversionOptions>).priceOperation;
+    const p = makeProduct({ priceEXVAT: "100.00" });
+    const result = await convertToExcel([p], o);
+    const priceHtIdx = result.headers.findIndex((h) => h.includes("p.price)"));
+    expect(result.rows[0][priceHtIdx]).toBe("100.00");
+  });
+
+  it("preserves empty price strings", async () => {
+    const op: PriceOperation = { type: "increase-fixed", amount: 10 };
+    const p = makeProduct({ priceEXVAT: "", priceINVAT: "" });
+    const result = await convertToExcel([p], opts({ priceOperation: op }));
+    const priceHtIdx = result.headers.findIndex((h) => h.includes("p.price)"));
+    const priceTtcIdx = result.headers.findIndex((h) => h.includes("p.price_ttc)"));
+    expect(result.rows[0][priceHtIdx]).toBe("");
+    expect(result.rows[0][priceTtcIdx]).toBe("");
+  });
+
+  it("can combine refOperation and priceOperation", async () => {
+    const refOp: Operation = { type: "add-prefix", prefix: "FK-" };
+    const priceOp: PriceOperation = { type: "increase-percent", percent: 20 };
+    const p = makeProduct({ model: "CS50", priceEXVAT: "100.00", priceINVAT: "121.00" });
+    const result = await convertToExcel([p], opts({ refOperation: refOp, priceOperation: priceOp }));
+    expect(result.rows[0][0]).toBe("FK-CS50");
+    const priceHtIdx = result.headers.findIndex((h) => h.includes("p.price)"));
+    const priceTtcIdx = result.headers.findIndex((h) => h.includes("p.price_ttc)"));
+    expect(result.rows[0][priceHtIdx]).toBe("120.00");
+    // TTC recalculated: 120 * 1.21 = 145.20
+    expect(result.rows[0][priceTtcIdx]).toBe("145.20");
   });
 });

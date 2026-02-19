@@ -23,6 +23,12 @@ import {
   DEFAULT_REF_OPERATION_STATE,
   buildOperation,
 } from "@/components/ui/ref-operation-form";
+import {
+  PriceOperationForm,
+  PriceOperationState,
+  DEFAULT_PRICE_OPERATION_STATE,
+  buildPriceOperation,
+} from "@/components/ui/price-operation-form";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -42,6 +48,12 @@ export function ConversionOptionsForm({
   );
   const [refOpState, setRefOpState] = useState<RefOperationState>(
     DEFAULT_REF_OPERATION_STATE,
+  );
+  const [priceModifyEnabled, setPriceModifyEnabled] = useState(
+    !!options.priceOperation,
+  );
+  const [priceOpState, setPriceOpState] = useState<PriceOperationState>(
+    DEFAULT_PRICE_OPERATION_STATE,
   );
 
   const update = <K extends keyof ConversionOptions>(
@@ -63,6 +75,28 @@ export function ConversionOptionsForm({
   const handleRefOpChange = (state: RefOperationState) => {
     setRefOpState(state);
     onChange({ ...options, refOperation: buildOperation(state) });
+  };
+
+  const handlePriceModifyToggle = (enabled: boolean) => {
+    setPriceModifyEnabled(enabled);
+    if (!enabled) {
+      onChange({ ...options, priceOperation: null });
+    } else {
+      onChange({
+        ...options,
+        priceOperation: buildPriceOperation(priceOpState),
+        priceTarget: priceOpState.target,
+      });
+    }
+  };
+
+  const handlePriceOpChange = (state: PriceOperationState) => {
+    setPriceOpState(state);
+    onChange({
+      ...options,
+      priceOperation: buildPriceOperation(state),
+      priceTarget: state.target,
+    });
   };
 
   return (
@@ -233,6 +267,26 @@ export function ConversionOptionsForm({
               state={refOpState}
               onChange={handleRefOpChange}
               idPrefix="vk-ref-op"
+            />
+          )}
+        </div>
+
+        {/* Price modification */}
+        <Separator />
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="sw-price-modify">Modifier les prix</Label>
+            <Switch
+              id="sw-price-modify"
+              checked={priceModifyEnabled}
+              onCheckedChange={handlePriceModifyToggle}
+            />
+          </div>
+          {priceModifyEnabled && (
+            <PriceOperationForm
+              state={priceOpState}
+              onChange={handlePriceOpChange}
+              idPrefix="vk-price-op"
             />
           )}
         </div>

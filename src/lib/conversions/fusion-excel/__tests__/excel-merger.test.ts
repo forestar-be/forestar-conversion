@@ -150,6 +150,31 @@ describe("mergeSheets", () => {
     const result = mergeSheets(base, spacedSource, opts);
     expect(result.rows[0][1]).toBe("Titre FR");
   });
+
+  it("keeps original value when source value is empty", () => {
+    const sourceWithEmpty: ParsedSheet = {
+      headers: ["Code", "Titre", "Desc"],
+      rows: [
+        ["REF001", "", "Desc FR 1"],
+        ["REF003", "Titre FR 3", ""],
+      ],
+    };
+    const opts: MergeOptions = {
+      baseKeyCol: 0,
+      sourceKeyCol: 0,
+      mappings: [
+        { baseColIndex: 1, sourceColIndex: 1 },
+        { baseColIndex: 2, sourceColIndex: 2 },
+      ],
+    };
+    const result = mergeSheets(base, sourceWithEmpty, opts);
+    // REF001: empty source title → keep original "Title EN 1", but desc replaced
+    expect(result.rows[0][1]).toBe("Title EN 1");
+    expect(result.rows[0][2]).toBe("Desc FR 1");
+    // REF003: title replaced, empty source desc → keep original "Desc EN 3"
+    expect(result.rows[2][1]).toBe("Titre FR 3");
+    expect(result.rows[2][2]).toBe("Desc EN 3");
+  });
 });
 
 // ─── isDolibarrFormat ───────────────────────────────────────────────────────

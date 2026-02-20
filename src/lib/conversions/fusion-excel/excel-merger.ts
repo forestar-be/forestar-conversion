@@ -70,7 +70,12 @@ export function mergeSheets(
       // Clone base row and replace mapped columns
       const merged = [...baseRow];
       for (const mapping of mappings) {
-        merged[mapping.baseColIndex] = sourceRow[mapping.sourceColIndex] ?? "";
+        const sourceValue = (sourceRow[mapping.sourceColIndex] ?? "").trim();
+        // Only replace if the source value is non-empty; keep original otherwise
+        if (sourceValue !== "") {
+          merged[mapping.baseColIndex] =
+            sourceRow[mapping.sourceColIndex] ?? "";
+        }
       }
       mergedRows.push(merged);
       matchedCount++;

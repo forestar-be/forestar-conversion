@@ -44,4 +44,12 @@ export const CONVERSIONS: ConversionDefinition[] = [
     from: "2 fichiers Excel",
     to: "Excel fusionné",
   },
+  {
+    slug: "excel-dolibarr",
+    title: "Excel → Dolibarr",
+    description:
+      "Convertir un fichier Excel générique en format importable Dolibarr 22 avec mapping de colonnes",
+    from: "Excel générique",
+    to: "Excel Dolibarr 22",
+  },
 ];

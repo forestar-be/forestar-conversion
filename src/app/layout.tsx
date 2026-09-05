@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Forestar — Conversions",
-  description: "Outils internes de conversion de fichiers Forestar",
+  title: "Forestar — Conversion",
+  description: "Ces outils sont maintenant intégrés à Dolibarr",
   robots: {
     index: false,
     follow: false,
